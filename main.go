@@ -49,6 +49,39 @@ func (s *handSorter) Less(i, j int) bool {
 	return s.by(&s.hands[i], &s.hands[j])
 }
 
+func getCardStrength(count int, counters []int) int {
+	if count == 5 {
+		return 0
+	}
+
+	if count == 4 {
+		return 1
+	}
+
+	if count == 3 {
+		if slices.Contains(counters, 2) {
+			return 2
+		}
+		return 3
+	}
+
+	if count == 2 {
+		found := 0
+		for _, v := range counters {
+			if v == 2 {
+				found++
+			}
+		}
+		if found > 1 {
+			return 4
+		}
+		return 5
+	}
+
+	// We do not have found a str
+	return 99
+}
+
 func getStrength(h []string) int {
 	/*
 	   0 = Five of a kind, where all five cards have the same label: AAAAA
@@ -60,37 +93,63 @@ func getStrength(h []string) int {
 	   6 = High card, where all cards' labels are distinct: 23456
 	   7 = other
 	*/
+	jokerCount := 0
 	cardCount := make(map[string]int)
 	for _, c := range h {
-		cardCount[c] += 1
+		if c == "J" {
+			jokerCount++
+		} else {
+			cardCount[c] += 1
+		}
 	}
 
-	for c, count := range cardCount {
-		if count == 5 {
+	var counters []int
+	if jokerCount > 3 {
+		return 0
+	}
+	for _, count := range cardCount {
+		counters = append(counters, count)
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(counters)))
+
+	if jokerCount == 3 {
+		if counters[0] == 2 {
 			return 0
 		}
-		if count == 4 {
+		return 1
+	}
+	str := getCardStrength(counters[0], counters)
+	if str < 6 && jokerCount == 0 {
+		return str
+	}
+
+	if jokerCount > 0 {
+		switch str {
+		case 1:
+			return 0
+		case 2:
+			if jokerCount == 1 {
+				return 1
+			}
+			return 0
+		case 3:
+			if jokerCount == 1 {
+				return 1
+			}
+			return 0
+		case 4:
+			return 2
+		case 5:
+			if jokerCount == 1 {
+				return 3
+			}
 			return 1
 		}
-		if count == 3 {
-			for x, xcount := range cardCount {
-				if x != c && xcount == 2 {
-					return 2
-				}
-			}
+
+		if jokerCount == 2 {
 			return 3
 		}
-		if count == 2 {
-			for x, xcount := range cardCount {
-				if x != c && xcount == 3 {
-					return 2
-				}
-				if x != c && xcount == 2 {
-					return 4
-				}
-			}
-			return 5
-		}
+		return 5
 	}
 
 	// check if all card are distincts
@@ -131,7 +190,7 @@ func main() {
 		}
 
 		values := []string{
-			"A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2",
+			"A", "K", "Q", "T", "9", "8", "7", "6", "5", "4", "3", "2", "J",
 		}
 		for i := 0; i < 5; i++ {
 			if p1.cards[i] == p2.cards[i] {
@@ -149,6 +208,7 @@ func main() {
 
 	sum := 0
 	for i, h := range hands {
+		fmt.Println(h.cards, h.bid, h.strength)
 		sum += h.bid * (i + 1)
 	}
 	fmt.Println(fmt.Sprintf("Sum =  %d", sum))
